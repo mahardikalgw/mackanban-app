@@ -6,9 +6,9 @@
 //  from \.theme.
 //
 //  Layout:
-//  - Top row: priority badge (left) + due-date pill (right)
+//  - Top row: priority badge + due-date pill + focus pill + play button
 //  - Title (semibold, max 3 lines)
-//  - Bottom row: tags + assignee avatars (right)
+//  - Bottom row: tags
 //
 //  Badges and tag chips are built from the shared `Pill` component.
 //
@@ -104,9 +104,6 @@ struct TaskCardView: View {
                 focusPill
             }
             Spacer(minLength: 0)
-            if isHovering && !isActiveTask {
-                startPomodoroButton
-            }
             if let dueDate = task.dueDate {
                 Pill(
                     text: dueDate.formatted(.dateTime.month(.abbreviated).day()),
@@ -134,26 +131,6 @@ struct TaskCardView: View {
         )
     }
 
-    /// Hover-revealed play button that starts a Pomodoro for this task.
-    private var startPomodoroButton: some View {
-        Button {
-            PomodoroTimer.shared.startWork(task: task)
-            PomodoroWindowController.shared.show()
-        } label: {
-            Image(systemName: "play.fill")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(theme.textSecondary)
-                .frame(width: 24, height: 24)
-                .background(
-                    Circle()
-                        .fill(theme.surfaceHover)
-                )
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .help("Start Pomodoro")
-    }
-
     private func dueDateColor(_ date: Date) -> Color {
         if date < .now { return Color(red: 0.831, green: 0.298, blue: 0.278) } // overdue
         if date < .now.addingTimeInterval(86400) {
@@ -165,7 +142,7 @@ struct TaskCardView: View {
     // MARK: - Lower row (tags + assignees)
 
     private var hasLowerRow: Bool {
-        !task.tags.isEmpty || !task.assignees.isEmpty || sessionStore.count(for: task.id) > 0
+        !task.tags.isEmpty || sessionStore.count(for: task.id) > 0
     }
 
     @ViewBuilder
@@ -186,7 +163,6 @@ struct TaskCardView: View {
             }
             PomodoroCountBadge(taskID: task.id)
             Spacer(minLength: 0)
-            AssigneeAvatarsView(members: task.assignees, maxVisible: 3, size: 22)
         }
         .font(.system(size: 13))
     }
@@ -197,12 +173,7 @@ struct TaskCardView: View {
     let item = WorkItem(
         title: "Add email field to the registration form with validation",
         priority: .medium,
-        tags: ["UI", "Design", "Form"],
-        assignees: [
-            TeamMember(name: "Ava Chen"),
-            TeamMember(name: "Leo Park"),
-            TeamMember(name: "Mia Sato")
-        ]
+        tags: ["UI", "Design", "Form"]
     )
     TaskCardView(task: item, namespace: ns)
         .padding(20)

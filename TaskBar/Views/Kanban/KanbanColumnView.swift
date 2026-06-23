@@ -36,10 +36,6 @@ struct KanbanColumnView: View {
                             .onTapGesture { onTaskTap?(task.id) }
                             .contextMenu {
                                 Button("Open") { onTaskTap?(task.id) }
-                                Button("Start Pomodoro") {
-                                    PomodoroTimer.shared.startWork(task: task)
-                                    PomodoroWindowController.shared.show()
-                                }
                                 Divider()
                                 Button("Delete", role: .destructive) {
                                     onTaskDelete?(task.id)

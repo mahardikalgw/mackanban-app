@@ -51,7 +51,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Sendable {
 }
 
 extension Notification.Name {
-    static let themeChanged = Notification.Name("TaskBar.themeChanged")
+    static let themeChanged = Notification.Name("Mackanban.themeChanged")
 }
 
 // MARK: - Theme (color tokens)

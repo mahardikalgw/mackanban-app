@@ -17,7 +17,6 @@ final class TaskEditorViewModel {
     var priority: Priority
     var dueDate: Date?
     var tagsText: String
-    var assignees: [TeamMember]
 
     var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -34,7 +33,6 @@ final class TaskEditorViewModel {
         self.priority = item?.priority ?? .medium
         self.dueDate = item?.dueDate
         self.tagsText = (item?.tags ?? []).joined(separator: ", ")
-        self.assignees = item?.assignees ?? []
     }
 
     @discardableResult
@@ -51,7 +49,6 @@ final class TaskEditorViewModel {
                 item.dueDate = self.dueDate
                 item.setTags(tags)
             }
-            try repository.setAssignees(self.assignees, on: existing.id)
             return existing
         } else {
             return try repository.create(
@@ -59,8 +56,7 @@ final class TaskEditorViewModel {
                 itemDescription: itemDescription,
                 priority: priority,
                 dueDate: dueDate,
-                tags: tags,
-                assignees: assignees
+                tags: tags
             )
         }
     }

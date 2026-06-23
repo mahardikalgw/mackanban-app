@@ -78,12 +78,16 @@ struct PomodoroTaskPickerView: View {
     // MARK: - Filtered tasks
 
     private var filteredTasks: [WorkItem] {
+        // Only show tasks that are todo or doing.
+        let eligible = tasks.filter {
+            $0.status == .todo || $0.status == .doing
+        }
         let result: [WorkItem]
         if filterText.trimmingCharacters(in: .whitespaces).isEmpty {
-            result = tasks
+            result = eligible
         } else {
             let query = filterText.lowercased()
-            result = tasks.filter { $0.title.lowercased().contains(query) }
+            result = eligible.filter { $0.title.lowercased().contains(query) }
         }
         // Sort: active project's tasks first, then by priority
         let activeProjectID = PomodoroTimer.shared.currentProjectID
@@ -120,7 +124,11 @@ struct PomodoroTaskPickerView: View {
             return
         }
         do {
+            let predicate = #Predicate<WorkItem> {
+                $0.statusRaw == "todo" || $0.statusRaw == "doing"
+            }
             let descriptor = FetchDescriptor<WorkItem>(
+                predicate: predicate,
                 sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
             )
             tasks = try context.fetch(descriptor)

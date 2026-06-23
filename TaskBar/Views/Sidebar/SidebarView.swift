@@ -55,7 +55,7 @@ struct SidebarView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(theme.accentForeground)
             }
-            Text("TaskBar")
+            Text("Mackanban")
                 .font(.system(size: 16, weight: .bold))
                 .tracking(-0.2)
                 .foregroundStyle(theme.textPrimary)

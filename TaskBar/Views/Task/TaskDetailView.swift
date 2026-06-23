@@ -3,7 +3,6 @@
 //  TaskBar
 //
 //  Notion-style full editor. Reads colors from \.theme.
-//  Surfaces assignees via AssigneePickerSheet.
 //
 //  Built from shared components: `FormField`, `FormTextEditor`,
 //  `SheetActionBar`.
@@ -20,7 +19,6 @@ struct TaskDetailView: View {
     let onDelete: () -> Void
 
     @Environment(\.theme) private var theme
-    @State private var showAssigneePicker: Bool = false
 
     init(
         task: WorkItem,
@@ -50,7 +48,6 @@ struct TaskDetailView: View {
                 text: $viewModel.tagsText,
                 placeholder: "urgent, client"
             )
-            assigneesBlock
             SheetActionBar(
                 primaryLabel: "Save",
                 primaryDisabled: !viewModel.canSave,
@@ -62,13 +59,6 @@ struct TaskDetailView: View {
         .padding(28)
         .frame(width: 580)
         .background(theme.bg)
-        .sheet(isPresented: $showAssigneePicker) {
-            AssigneePickerSheet(
-                viewModel: viewModel,
-                onDone: { showAssigneePicker = false },
-                onCancel: { showAssigneePicker = false }
-            )
-        }
     }
 
     // MARK: - Sections
@@ -139,32 +129,6 @@ struct TaskDetailView: View {
                     .datePickerStyle(.compact)
                     .controlSize(.small)
                 }
-            }
-        }
-    }
-
-    private var assigneesBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Assignees")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(theme.textSecondary)
-                Spacer()
-                Button {
-                    showAssigneePicker = true
-                } label: {
-                    Text(viewModel.assignees.isEmpty ? "Add" : "Edit")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(theme.accent)
-                }
-                .buttonStyle(.plain)
-            }
-            if viewModel.assignees.isEmpty {
-                Text("No one assigned")
-                    .font(.system(size: 14))
-                    .foregroundStyle(theme.textTertiary)
-            } else {
-                AssigneeAvatarsView(members: viewModel.assignees, maxVisible: 6, size: 26)
             }
         }
     }

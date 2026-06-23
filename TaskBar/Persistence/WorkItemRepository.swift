@@ -3,9 +3,6 @@
 //  TaskBar
 //
 //  CRUD + filtering for the WorkItem entity. Flat (no hierarchy).
-//  Assignee management lives here too: assignees are a many-to-many
-//  relationship, but we expose simple `addAssignee` / `removeAssignee`
-//  helpers because SwiftData's bulk-set API is awkward for that case.
 //
 
 import Foundation
@@ -35,8 +32,7 @@ final class WorkItemRepository: @unchecked Sendable {
         updatedAt: Date = .now,
         dueDate: Date? = nil,
         tags: [String] = [],
-        project: Project? = nil,
-        assignees: [TeamMember] = []
+        project: Project? = nil
     ) throws -> WorkItem {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw WorkItemRepositoryError.invalidTitle }
@@ -49,8 +45,7 @@ final class WorkItemRepository: @unchecked Sendable {
             updatedAt: updatedAt,
             dueDate: dueDate,
             tags: tags,
-            project: project,
-            assignees: assignees
+            project: project
         )
         context.insert(item)
         try context.save()
@@ -107,18 +102,6 @@ final class WorkItemRepository: @unchecked Sendable {
     func update(id: UUID, _ mutate: (WorkItem) throws -> Void) throws {
         guard let item = try find(id: id) else { throw WorkItemRepositoryError.notFound(id) }
         try mutate(item)
-        item.updatedAt = .now
-        try context.save()
-    }
-
-    /// Replace the entire assignee set. No-op when the new set matches
-    /// the existing one (compared by id).
-    func setAssignees(_ members: [TeamMember], on id: UUID) throws {
-        guard let item = try find(id: id) else { throw WorkItemRepositoryError.notFound(id) }
-        let existingIDs = Set(item.assignees.map(\.id))
-        let newIDs = Set(members.map(\.id))
-        guard existingIDs != newIDs else { return }
-        item.assignees = members
         item.updatedAt = .now
         try context.save()
     }

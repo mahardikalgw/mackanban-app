@@ -4,7 +4,7 @@
 //
 //  A single task. Backed by SwiftData. Flat (no hierarchy) — the
 //  revamp drops epic/story/task nesting in favor of a simple list of
-//  tasks per project. Many-to-many with TeamMember for assignees.
+//  tasks per project.
 //
 
 import Foundation
@@ -26,10 +26,6 @@ final class WorkItem {
     /// Project this work item belongs to. Optional for safety.
     var project: Project?
 
-    /// People assigned to this task.
-    @Relationship(deleteRule: .nullify)
-    var assignees: [TeamMember] = []
-
     init(
         id: UUID = UUID(),
         title: String,
@@ -40,8 +36,7 @@ final class WorkItem {
         updatedAt: Date = .now,
         dueDate: Date? = nil,
         tags: [String] = [],
-        project: Project? = nil,
-        assignees: [TeamMember] = []
+        project: Project? = nil
     ) {
         self.id = id
         self.title = title
@@ -53,7 +48,6 @@ final class WorkItem {
         self.dueDate = dueDate
         self.tagsJoined = tags.joined(separator: ",")
         self.project = project
-        self.assignees = assignees
     }
 }
 

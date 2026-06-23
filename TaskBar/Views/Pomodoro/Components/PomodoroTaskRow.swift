@@ -3,9 +3,8 @@
 //  TaskBar
 //
 //  One row in the floating Pomodoro window's task picker. Tapping
-//  starts a 25-minute work phase for the given task via the shared
-//  `PomodoroTimer` and shows the floating window.
-//
+//  selects the task as the pending focus task — the user then picks
+//  a duration and presses "Start" to begin the work phase.
 //
 
 import SwiftUI
@@ -22,8 +21,11 @@ struct PomodoroTaskRow: View {
 
     var body: some View {
         Button {
-            PomodoroTimer.shared.startWork(task: task)
-            PomodoroWindowController.shared.show()
+            PomodoroTimer.shared.selectTask(
+                id: task.id,
+                title: task.title,
+                projectID: task.project?.id
+            )
         } label: {
             HStack(alignment: .center, spacing: 10) {
                 Circle()
@@ -55,7 +57,7 @@ struct PomodoroTaskRow: View {
                     }
                 }
 
-                Image(systemName: "play.fill")
+                Image(systemName: "forward.fill")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(isHovering ? .primary : .secondary)
             }

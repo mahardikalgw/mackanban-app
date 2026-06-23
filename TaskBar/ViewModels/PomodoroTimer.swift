@@ -34,8 +34,8 @@ enum PomodoroPhase: Equatable {
 /// (dropped → In Progress, or Confirm Done → Review). The kanban
 /// view model listens for this to reload the board.
 extension Notification.Name {
-    static let pomodoroWorkSessionCompleted = Notification.Name("TaskBar.pomodoroWorkSessionCompleted")
-    static let pomodoroTaskStatusChanged = Notification.Name("TaskBar.pomodoroTaskStatusChanged")
+    static let pomodoroWorkSessionCompleted = Notification.Name("Mackanban.pomodoroWorkSessionCompleted")
+    static let pomodoroTaskStatusChanged = Notification.Name("Mackanban.pomodoroTaskStatusChanged")
 }
 
 @Observable
@@ -213,7 +213,8 @@ final class PomodoroTimer {
         endDate = Date.now.addingTimeInterval(TimeInterval(durationSeconds))
         secondsRemainingWhenPaused = nil
         stopTicker()
-        scheduleNotification(in: TimeInterval(durationSeconds))
+        scheduleEndNotification(in: TimeInterval(durationSeconds))
+        scheduleTwoMinuteWarning(in: TimeInterval(durationSeconds))
         ticker = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.tick()
@@ -239,7 +240,7 @@ final class PomodoroTimer {
         ticker = nil
     }
 
-    private func scheduleNotification(in interval: TimeInterval) {
+    private func scheduleEndNotification(in interval: TimeInterval) {
         guard interval > 0 else { return }
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
@@ -259,8 +260,30 @@ final class PomodoroTimer {
         center.add(request)
     }
 
+    private func scheduleTwoMinuteWarning(in totalInterval: TimeInterval) {
+        let warningInterval = totalInterval - 120
+        guard warningInterval > 0 else { return }
+        let center = UNUserNotificationCenter.current()
+        let content = UNMutableNotificationContent()
+        content.title = "2 minutes remaining"
+        content.body = currentTaskTitle.isEmpty
+            ? "Wrap up — the timer is almost done."
+            : "“\(currentTaskTitle)” — 2 minutes left."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: warningInterval, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "pomodoro-2min-warning",
+            content: content,
+            trigger: trigger
+        )
+        center.removePendingNotificationRequests(withIdentifiers: ["pomodoro-2min-warning"])
+        center.add(request)
+    }
+
     private func cancelPendingNotification() {
         UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: ["pomodoro-end"])
+            .removePendingNotificationRequests(
+                withIdentifiers: ["pomodoro-end", "pomodoro-2min-warning"]
+            )
     }
 }

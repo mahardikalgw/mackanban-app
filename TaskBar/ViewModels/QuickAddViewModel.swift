@@ -16,7 +16,6 @@ final class QuickAddViewModel {
     /// Defaults for new items.
     var priority: Priority = .medium
     var project: Project?
-    var assignees: [TeamMember] = []
 
     var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -39,8 +38,7 @@ final class QuickAddViewModel {
             itemDescription: itemDescription,
             status: .todo,
             priority: priority,
-            project: project,
-            assignees: assignees
+            project: project
         )
     }
 

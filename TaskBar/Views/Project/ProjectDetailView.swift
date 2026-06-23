@@ -48,18 +48,15 @@ struct ProjectDetailView: View {
     let context = ModelContext(container)
     let projectRepo = ProjectRepository(context: context)
     let workRepo = WorkItemRepository(context: context)
-    let memberRepo = TeamMemberRepository(context: context)
     let project = try! projectRepo.create(
         name: "Website Redesign",
         colorHex: "#D49A6A",
         projectDescription: "Complete redesign of company website."
     )
-    let ava = try! memberRepo.create(name: "Ava Chen")
-    let leo = try! memberRepo.create(name: "Leo Park")
-    let _ = try! workRepo.create(title: "Product Redesign", status: .todo, priority: .medium, tags: ["UI", "Design"], project: project, assignees: [ava])
-    let _ = try! workRepo.create(title: "Mobile App Beta", status: .doing, priority: .medium, tags: ["UI"], project: project, assignees: [ava, leo])
-    let _ = try! workRepo.create(title: "Performance Optimization", status: .doing, priority: .medium, tags: ["Performance"], project: project, assignees: [leo])
-    let _ = try! workRepo.create(title: "API Integration for Tasks", status: .done, priority: .medium, tags: ["Backend"], project: project, assignees: [leo])
+    try! workRepo.create(title: "Product Redesign", status: .todo, priority: .medium, tags: ["UI", "Design"], project: project)
+    try! workRepo.create(title: "Mobile App Beta", status: .doing, priority: .medium, tags: ["UI"], project: project)
+    try! workRepo.create(title: "Performance Optimization", status: .doing, priority: .medium, tags: ["Performance"], project: project)
+    try! workRepo.create(title: "API Integration for Tasks", status: .done, priority: .medium, tags: ["Backend"], project: project)
     return ProjectDetailView(project: project)
         .modelContainer(container)
         .environment(\.theme, .light)

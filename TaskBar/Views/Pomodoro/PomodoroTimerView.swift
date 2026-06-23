@@ -308,6 +308,11 @@ struct PomodoroTimerView: View {
     private func startWorkForTask(id: UUID) {
         let repo = WorkItemRepository(context: modelContext)
         guard let task = try? repo.find(id: id) else { return }
+        // Move to in-progress if not already
+        if task.status != .doing {
+            try? repo.updateStatus(id: id, to: .doing)
+            NotificationCenter.default.post(name: .pomodoroTaskStatusChanged, object: nil)
+        }
         PomodoroTimer.shared.startWork(task: task)
     }
 

@@ -13,7 +13,6 @@ enum SearchService {
     /// - description
     /// - any tag
     /// - status display label and common synonyms
-    /// - assignee names
     static func filter(items: [WorkItem], query: String) -> [WorkItem] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return items }
@@ -25,9 +24,6 @@ enum SearchService {
             if item.tags.contains(where: { $0.lowercased().contains(needle) }) { return true }
             if item.status.searchKey.contains(needle) { return true }
             if item.status.aliasKeys.contains(where: { $0.contains(needle) }) { return true }
-            if item.assignees.contains(where: { $0.name.lowercased().contains(needle) }) {
-                return true
-            }
             return false
         }
     }

@@ -1,18 +1,17 @@
 //
 //  PomodoroWindowController.swift
-//  TaskBar
+//  Mackanban
 //
-//  Owns the always-on-top NSPanel that hosts the floating Pomodoro
-//  timer window. The panel stays visible while the user works in
-//  other apps and across fullscreen spaces.
+//  Manages the Pomodoro timer's menu bar presence and popover.
 //
-//  Dynamically resizes based on the timer's phase: taller while
-//  idle (to show the task picker) and compact while a phase is
-//  running.
+//  When the timer is idle the menu bar icon shows "🍅". When a
+//  work phase is running the icon shows the remaining time.
+//  Clicking the icon opens/closes a popover with the full
+//  PomodoroTimerView (drop zone, duration picker, countdown,
+//  finished controls).
 //
-//  IMPORTANT: Panel creation is deferred until `show()` rather than
-//  `setupIfNeeded()` because AppKit panel configuration can throw
-//  Objective-C exceptions early in the view lifecycle.
+//  The popover closes without stopping the timer — the user can
+//  keep working while the countdown runs in the menu bar.
 //
 
 import AppKit
@@ -23,61 +22,65 @@ import SwiftData
 final class PomodoroWindowController {
     static let shared = PomodoroWindowController()
 
-    /// The model context used by the task picker view. Set by
-    /// `ContentRoot.task` before the panel is shown.
     var modelContext: ModelContext?
 
-    private var panel: NSPanel?
+    private var statusItem: NSStatusItem?
+    private var popover: NSPopover?
     private var hostingController: NSHostingController<AnyView>?
+    private var ticker: Timer?
 
-    /// Idempotent: stores the model context. The actual NSPanel is
-    /// lazily created on first `show()` because panel setup can throw
-    /// ObjC exceptions if called too early in the view lifecycle.
+    // MARK: - Setup
+
     func setupIfNeeded(context: ModelContext?) {
         modelContext = context
-        // Panel creation is deferred — see `lazyPanel()`.
+        // Create the status item immediately so it's in the menu bar
+        // and positioned before the user first opens the popover.
+        createStatusItem()
+        createPopover()
+        startMenuBarTicker()
     }
 
-    /// Bring the timer window to the front. Creates the panel on
-    /// first call.
+    /// Show the popover at the status item's position.
     func show() {
-        lazyPanel()
-        guard let panel else { return }
-        if panel.isVisible {
-            panel.orderFrontRegardless()
-        } else {
-            panel.center()
-            panel.makeKeyAndOrderFront(nil)
+        guard let popover, let statusItem else { return }
+        guard let button = statusItem.button else { return }
+        if popover.isShown {
+            popover.performClose(nil)
+            return
+        }
+        popover.show(
+            relativeTo: button.bounds,
+            of: button,
+            preferredEdge: .minY
+        )
+        // Force the popover to appear; transient behaviour on first
+        // show can be unreliable if the status item window is not
+        // yet fully positioned.
+        if let popoverWindow = popover.contentViewController?.view.window {
+            popoverWindow.orderFrontRegardless()
         }
     }
 
     func hide() {
-        panel?.orderOut(nil)
+        popover?.performClose(nil)
     }
 
-    /// Create the panel if it doesn't exist yet.
-    private func lazyPanel() {
-        guard panel == nil else { return }
+    // MARK: - Status item
 
-        let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: panelWidthForCurrentPhase, height: panelHeightForCurrentPhase),
-            styleMask: [.titled, .closable, .resizable, .utilityWindow, .hudWindow, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
+    private func createStatusItem() {
+        let item = NSStatusBar.system.statusItem(
+            withLength: NSStatusItem.variableLength
         )
-        panel.title = "Focus Timer"
-        panel.level = .floating
-        panel.hidesOnDeactivate = false
-        panel.becomesKeyOnlyIfNeeded = true
-        panel.isMovableByWindowBackground = true
-        // Collection behavior: keep it minimal to avoid AppKit
-        // validation exceptions (esp. when .hudWindow is used).
-        panel.collectionBehavior = [.canJoinAllSpaces]
-        panel.titlebarAppearsTransparent = true
-        panel.titleVisibility = .hidden
-        panel.isReleasedWhenClosed = false
-        panel.isFloatingPanel = true
-        panel.isRestorable = false
+        item.button?.title = "🍅"
+        item.button?.action = #selector(togglePopover)
+        item.button?.target = self
+        statusItem = item
+    }
+
+    private func createPopover() {
+        let p = NSPopover()
+        p.behavior = .transient
+        p.animates = true
 
         let rootView = PomodoroTimerView()
         let host: NSHostingController<AnyView>
@@ -88,41 +91,82 @@ final class PomodoroWindowController {
         } else {
             host = NSHostingController(rootView: AnyView(rootView))
         }
-        panel.contentViewController = host
-        self.panel = panel
-        self.hostingController = host
+        p.contentViewController = host
+        p.contentSize = currentPopoverSize
+
+        hostingController = host
+        popover = p
     }
 
-    /// Resize the panel to match the current timer phase.
-    /// Called from `PomodoroTimerView.onChange(of: phase)`.
-    func resizeToFitCurrentPhase() {
-        guard let panel else { return }
-        let newWidth = panelWidthForCurrentPhase
-        let newHeight = panelHeightForCurrentPhase
-        let currentFrame = panel.frame
-        let newFrame = NSRect(
-            x: currentFrame.origin.x,
-            y: currentFrame.origin.y + (currentFrame.height - newHeight),
-            width: newWidth,
-            height: newHeight
-        )
-        panel.animator().setFrame(newFrame, display: true, animate: true)
-    }
+    // MARK: - Menu bar ticker
 
-    // MARK: - Phase-based sizing
-
-    private var panelWidthForCurrentPhase: CGFloat {
-        switch PomodoroTimer.shared.phase {
-        case .idle: return 340
-        case .working, .finished: return 300
+    private func startMenuBarTicker() {
+        ticker?.invalidate()
+        ticker = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateStatusItemTitle()
+            }
         }
     }
 
-    private var panelHeightForCurrentPhase: CGFloat {
+    private func updateStatusItemTitle() {
+        let title: String
         switch PomodoroTimer.shared.phase {
-        case .idle: return 460
-        case .working: return 220
-        case .finished: return 280
+        case .idle:
+            title = "🍅"
+        case .working:
+            let remaining = PomodoroTimer.shared.secondsRemaining()
+            let m = remaining / 60
+            let s = remaining % 60
+            title = "🍅 \(String(format: "%02d:%02d", m, s))"
+        case .finished:
+            title = "🍅 DONE"
+        }
+        statusItem?.button?.title = title
+    }
+
+    // MARK: - Popover toggle
+
+    @objc private func togglePopover() {
+        guard let popover, let statusItem else { return }
+        guard let button = statusItem.button else { return }
+        if popover.isShown {
+            popover.performClose(nil)
+        } else {
+            popover.show(
+                relativeTo: button.bounds,
+                of: button,
+                preferredEdge: .minY
+            )
+        }
+    }
+
+    // MARK: - Resize
+
+    func resizeToFitCurrentPhase() {
+        guard let popover else { return }
+        popover.contentSize = currentPopoverSize
+        if popover.isShown, let button = statusItem?.button {
+            popover.show(
+                relativeTo: button.bounds,
+                of: button,
+                preferredEdge: .minY
+            )
+        }
+    }
+
+    private var currentPopoverSize: NSSize {
+        switch PomodoroTimer.shared.phase {
+        case .idle:    return NSSize(width: 340, height: 460)
+        case .working: return NSSize(width: 300, height: 220)
+        case .finished: return NSSize(width: 300, height: 280)
+        }
+    }
+
+    deinit {
+        ticker?.invalidate()
+        if let item = statusItem {
+            NSStatusBar.system.removeStatusItem(item)
         }
     }
 }

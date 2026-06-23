@@ -10,7 +10,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct TaskBarApp: App {
+struct MackanbanApp: App {
     @State private var sidebarSelection: SidebarSelection = .dashboard
 
     var body: some Scene {
